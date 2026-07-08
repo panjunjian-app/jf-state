@@ -41,12 +41,6 @@
         .result-card:hover {
             transform: translateY(-2px);
         }
-        .status-badge {
-            font-size: 0.75rem;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            margin-left: 0.5rem;
-        }
         pre {
             white-space: pre-wrap;
             word-wrap: break-word;
@@ -64,7 +58,7 @@
         </div>
         
         <div class="row mb-4">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="card">
                     <div class="card-header bg-primary text-white">
                         <h5>第一步：上传UAT测试项目表</h5>
@@ -82,7 +76,7 @@
                 </div>
             </div>
             
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="card">
                     <div class="card-header bg-secondary text-white">
                         <h5>第二步：上传月度版数据表</h5>
@@ -95,6 +89,24 @@
                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-muted"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                             </div>
                             <p class="text-muted" id="uploadText2">点击或拖拽上传文件</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h5>第三步：上传手工校验表（可选）</h5>
+                        <small>文件格式：集团-项目-手工校验表</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="upload-area" id="uploadArea3" onclick="document.getElementById('fileInput3').click()">
+                            <input type="file" id="fileInput3" accept=".xlsx,.xls,.csv" class="d-none" onchange="handleFileUpload(3)">
+                            <div class="mb-2">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-muted"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            </div>
+                            <p class="text-muted" id="uploadText3">点击或拖拽上传文件（可选）</p>
                         </div>
                     </div>
                 </div>
@@ -130,7 +142,8 @@
                     </button>
                 </div>
             </div>
-            <div class="row mb-4">
+            
+            <div class="row mb-3">
                 <div class="col-md-3">
                     <div class="card result-card bg-primary text-white">
                         <div class="card-body text-center">
@@ -165,6 +178,41 @@
                 </div>
             </div>
             
+            <div class="row mb-4" id="file3Stats" style="display: none;">
+                <div class="col-md-3">
+                    <div class="card result-card bg-secondary text-white">
+                        <div class="card-body text-center">
+                            <h3 class="card-title" id="file3MatchedCount">-</h3>
+                            <p class="card-text">校验表匹配项目数</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card result-card bg-danger text-white">
+                        <div class="card-body text-center">
+                            <h3 class="card-title" id="notReportedCount">-</h3>
+                            <p class="card-text">未填报（C和M均为0）</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card result-card bg-light border">
+                        <div class="card-body text-center">
+                            <h3 class="card-title text-dark" id="cZeroCount">-</h3>
+                            <p class="card-text text-dark">C列为0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card result-card bg-light border">
+                        <div class="card-body text-center">
+                            <h3 class="card-title text-dark" id="mZeroCount">-</h3>
+                            <p class="card-text text-dark">M列为0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="card mb-4">
                 <div class="card-header bg-dark text-white">
                     <h5 class="mb-0">按地区公司统计柱状图</h5>
@@ -190,6 +238,7 @@
                                     <th>系统项目名字</th>
                                     <th>匹配项目名称</th>
                                     <th>经营分析是否调平</th>
+                                    <th>手工校验状态</th>
                                 </tr>
                             </thead>
                             <tbody id="resultsTableBody">
@@ -210,8 +259,10 @@
     <script>
         let file1Data = null;
         let file2Data = null;
+        let file3Data = null;
         let chartInstance = null;
         let allResults = [];
+        let file3Results = {}; // 存储文件3的匹配结果 {projectName: {cValue, mValue}}
         
         function useTestData() {
             file1Data = [
@@ -230,12 +281,24 @@
                 ['项目E', '否', 300]
             ];
             
+            // 测试数据：文件3（手工校验表）
+            file3Data = [
+                ['项目名称', 'C列数据', '其他列', '其他列', '其他列', '其他列', '其他列', '其他列', '其他列', '其他列', '其他列', 'M列数据'],
+                ['项目A', 10, 1, 1, 1, 1, 1, 1, 1, 1, 1, 20],
+                ['项目B', 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                ['项目C', 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                ['项目F', 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0]
+            ];
+            
             document.getElementById('uploadArea1').classList.add('has-file');
             document.getElementById('uploadArea1').classList.remove('has-error');
             document.getElementById('uploadText1').textContent = '✓ 测试数据文件1 (5行)';
             document.getElementById('uploadArea2').classList.add('has-file');
             document.getElementById('uploadArea2').classList.remove('has-error');
             document.getElementById('uploadText2').textContent = '✓ 测试数据文件2 (5行)';
+            document.getElementById('uploadArea3').classList.add('has-file');
+            document.getElementById('uploadArea3').classList.remove('has-error');
+            document.getElementById('uploadText3').textContent = '✓ 测试数据文件3 (5行)';
             
             checkReady();
             startMatching();
@@ -271,7 +334,6 @@
                             }
                             
                             const header = Array.from(data.slice(0, 4));
-                            const headerHex = header.map(b => b.toString(16).padStart(2, '0')).join(' ');
                             
                             if (header[0] === 0x50 && header[1] === 0x4b) {
                                 const workbook = XLSX.read(data, { type: 'array' });
@@ -282,7 +344,7 @@
                                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                                 arrayData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
                             } else {
-                                throw new Error(`不支持的文件格式（文件头: ${headerHex}）。请将文件另存为CSV格式后重试`);
+                                throw new Error(`不支持的文件格式。请将文件另存为CSV格式后重试`);
                             }
                         }
                         
@@ -292,8 +354,10 @@
                         
                         if (fileNumber === 1) {
                             file1Data = arrayData;
-                        } else {
+                        } else if (fileNumber === 2) {
                             file2Data = arrayData;
+                        } else if (fileNumber === 3) {
+                            file3Data = arrayData;
                         }
                         
                         uploadArea.classList.add('has-file');
@@ -371,20 +435,6 @@
             }
         }
         
-        function findColByKeyword(data, maxRows, keyword) {
-            for (let i = 0; i < Math.min(data.length, maxRows); i++) {
-                const row = data[i];
-                if (!row) continue;
-                for (let j = 0; j < row.length; j++) {
-                    const cell = String(row[j]).trim();
-                    if (cell.includes(keyword)) {
-                        return { row: i, col: j };
-                    }
-                }
-            }
-            return null;
-        }
-        
         function findHeaderRowAndCols(data, keywords) {
             for (let i = 0; i < Math.min(data.length, 20); i++) {
                 const row = data[i];
@@ -406,15 +456,77 @@
             return null;
         }
         
+        function parseFile3() {
+            if (!file3Data || file3Data.length === 0) return null;
+
+            // 文件3结构：B列=项目名称(索引1)，C列=数据(索引2)，M列=数据(索引12)
+            // 由于文件3可能被加密，我们需要更灵活地查找列
+            let projectNameCol = -1;
+            let cCol = -1;
+            let mCol = -1;
+            let headerRowIndex = -1;
+
+            // 查找表头
+            for (let i = 0; i < Math.min(file3Data.length, 5); i++) {
+                const row = file3Data[i];
+                if (!row) continue;
+                for (let j = 0; j < row.length; j++) {
+                    const cell = String(row[j]).trim();
+                    if (cell.includes('项目名称')) {
+                        projectNameCol = j;
+                        headerRowIndex = i;
+                    }
+                    // C列通常在第2列（索引2）
+                    // M列通常在第13列（索引12）
+                }
+            }
+
+            // 如果没有找到表头，使用默认列
+            if (projectNameCol < 0) projectNameCol = 1; // B列
+            if (cCol < 0) cCol = 2; // C列
+            if (mCol < 0) mCol = 12; // M列
+            if (headerRowIndex < 0) headerRowIndex = 0;
+
+            const results = {};
+            const startRow = headerRowIndex + 1;
+            
+            for (let i = startRow; i < file3Data.length; i++) {
+                const row = file3Data[i];
+                if (!row) continue;
+                
+                let projectName = '';
+                if (row.length > projectNameCol) {
+                    projectName = String(row[projectNameCol]).trim();
+                }
+                if (!projectName || projectName === 'nan' || projectName === 'undefined') continue;
+                
+                let cValue = null;
+                if (row.length > cCol) {
+                    const val = row[cCol];
+                    cValue = (val === '' || val === null || val === undefined) ? null : Number(val);
+                }
+                
+                let mValue = null;
+                if (row.length > mCol) {
+                    const val = row[mCol];
+                    mValue = (val === '' || val === null || val === undefined) ? null : Number(val);
+                }
+                
+                results[projectName] = { cValue, mValue };
+            }
+            
+            return results;
+        }
+        
         function startMatching() {
             if (!file1Data || !file2Data) {
-                alert('请先上传两个文件');
+                alert('请先上传前两个文件');
                 return;
             }
             
             document.getElementById('resultsArea').classList.remove('d-none');
             
-            // === 解析文件1：找"系统项目名字"（用于匹配）、"提供项目名称"（展示用）、"所属地区公司/子公司"列 ===
+            // === 解析文件1 ===
             const file1Header = findHeaderRowAndCols(file1Data, {
                 systemName: '系统项目名字',
                 provideName: '提供项目名称',
@@ -430,19 +542,15 @@
                 const provNameCol = file1Header.cols.provideName !== undefined ? file1Header.cols.provideName : -1;
                 const rCol = file1Header.cols.region !== undefined ? file1Header.cols.region : -1;
                 
-                console.log(`表头行=${hRow}, 系统项目名字列=${sysNameCol}, 提供项目名称列=${provNameCol}, 所属地区公司列=${rCol}, 文件总行数=${file1Data.length}`);
-                
                 for (let i = hRow + 1; i < file1Data.length; i++) {
                     const row = file1Data[i];
                     if (!row) continue;
                     
-                    // "系统项目名字"用于匹配
                     let systemName = '';
                     if (sysNameCol >= 0 && row.length > sysNameCol) {
                         systemName = String(row[sysNameCol]).trim();
                     }
                     
-                    // "提供项目名称"用于显示
                     let provideName = systemName;
                     if (provNameCol >= 0 && row.length > provNameCol) {
                         const p = String(row[provNameCol]).trim();
@@ -460,7 +568,6 @@
                         }
                     }
                     
-                    // 如果"系统项目名字"为空，尝试用"提供项目名称"
                     let matchName = systemName;
                     if (!matchName || matchName === 'nan' || matchName === 'undefined') {
                         matchName = provideName;
@@ -473,14 +580,11 @@
                             systemName: systemName || matchName,
                             provideName: provideName,
                             region: region || '未知',
-                            projectName: matchName  // 用于匹配的项目名
+                            projectName: matchName
                         });
                     }
                 }
             } else {
-                // 如果找不到"系统项目名字"，尝试C列（索引2）
-                console.log(`未找到"系统项目名字"表头，尝试使用C列(索引2)，文件总行数=${file1Data.length}`);
-                
                 for (let i = 1; i < file1Data.length; i++) {
                     const row = file1Data[i];
                     if (!row) continue;
@@ -505,7 +609,7 @@
                 }
             }
             
-            // === 解析文件2：找"项目名称"和"经营分析是否调平"列 ===
+            // === 解析文件2 ===
             const file2Header = findHeaderRowAndCols(file2Data, {
                 projectName: '项目名称',
                 leveled: '经营分析是否调平'
@@ -518,8 +622,6 @@
                 const pCol = file2Header.cols.projectName;
                 const lCol = file2Header.cols.leveled !== undefined ? file2Header.cols.leveled : -1;
                 
-                console.log(`文件2表头行=${hRow}, 项目名称列=${pCol}, 调平列=${lCol}`);
-                
                 for (let i = hRow + 1; i < file2Data.length; i++) {
                     const row = file2Data[i];
                     if (!row || row.length <= pCol) continue;
@@ -528,29 +630,23 @@
                     const leveled = lCol >= 0 && row.length > lCol ? String(row[lCol]).trim() : '';
                     projectNames2.push({ projectName: name, leveled: leveled });
                 }
-            } else {
-                console.log('未找到"项目名称"表头，请检查文件2格式');
             }
             
-            console.log('文件1项目数:', projectNames1.length);
-            console.log('文件2项目数:', projectNames2.length);
-            console.log('文件1项目名列表:', projectNames1.map(p => p.projectName));
-            console.log('文件2项目名列表:', projectNames2.map(p => p.projectName));
-            
-            if (projectNames1.length === 0) {
-                alert('文件1未识别到任何项目，请检查文件格式');
-                return;
-            }
-            if (projectNames2.length === 0) {
-                alert('文件2未识别到任何项目，请检查文件格式');
-                return;
+            // === 解析文件3（如果上传了）===
+            file3Results = {};
+            let hasFile3 = false;
+            if (file3Data && file3Data.length > 0) {
+                const f3 = parseFile3();
+                if (f3 && Object.keys(f3).length > 0) {
+                    file3Results = f3;
+                    hasFile3 = true;
+                }
             }
             
-            // 匹配逻辑：以文件1所有项目为基础，逐个匹配文件2
+            // 匹配逻辑：以文件1所有项目为基础
             allResults = [];
             const usedProject2 = new Set();
             
-            // 用Set去重文件名1
             const seen = new Set();
             const uniqueProjectNames1 = [];
             for (const item of projectNames1) {
@@ -563,6 +659,9 @@
             
             for (const item1 of uniqueProjectNames1) {
                 let matched = false;
+                let file3Match = null;
+                
+                // 先匹配文件2
                 for (let idx2 = 0; idx2 < projectNames2.length; idx2++) {
                     const item2 = projectNames2[idx2];
                     if (usedProject2.has(idx2)) continue;
@@ -582,13 +681,19 @@
                     }
                     
                     if (isMatch) {
+                        // 检查文件3匹配
+                        if (hasFile3) {
+                            file3Match = findFile3Match(item1.projectName, item2.projectName);
+                        }
+                        
                         allResults.push({
                             systemName: item1.systemName,
                             provideName: item1.provideName,
                             region: item1.region,
                             projectName2: item2.projectName,
                             leveled: item2.leveled,
-                            isMatched: true
+                            isMatched: true,
+                            file3Data: file3Match
                         });
                         usedProject2.add(idx2);
                         matched = true;
@@ -597,19 +702,25 @@
                 }
                 
                 if (!matched) {
+                    // 未匹配文件2，但仍检查文件3
+                    if (hasFile3) {
+                        file3Match = findFile3Match(item1.projectName, null);
+                    }
+                    
                     allResults.push({
                         systemName: item1.systemName,
                         provideName: item1.provideName,
                         region: item1.region,
                         projectName2: '-',
                         leveled: '',
-                        isMatched: false
+                        isMatched: false,
+                        file3Data: file3Match
                     });
                 }
             }
             
+            // 统计
             const matchedItems = allResults.filter(item => item.isMatched);
-            const unmatchedItems = allResults.filter(item => !item.isMatched);
             const leveledCount = matchedItems.filter(item => item.leveled === '是').length;
             const notLeveledCount = matchedItems.filter(item => item.leveled !== '是').length;
             
@@ -618,20 +729,60 @@
             document.getElementById('leveledCount').textContent = leveledCount;
             document.getElementById('notLeveledCount').textContent = notLeveledCount;
             
-            console.log('文件1总项目数:', allResults.length);
-            console.log('匹配成功:', matchedItems.length, '未匹配:', unmatchedItems.length);
-            console.log('匹配结果:', allResults);
+            // 文件3统计
+            if (hasFile3) {
+                document.getElementById('file3Stats').style.display = 'flex';
+                
+                let file3Matched = 0;
+                let notReported = 0;
+                let cZero = 0;
+                let mZero = 0;
+                
+                for (const item of allResults) {
+                    if (item.file3Data) {
+                        file3Matched++;
+                        const cIsZero = item.file3Data.cValue === 0 || item.file3Data.cValue === null;
+                        const mIsZero = item.file3Data.mValue === 0 || item.file3Data.mValue === null;
+                        
+                        if (cIsZero) cZero++;
+                        if (mIsZero) mZero++;
+                        if (cIsZero && mIsZero) notReported++;
+                    }
+                }
+                
+                document.getElementById('file3MatchedCount').textContent = file3Matched;
+                document.getElementById('notReportedCount').textContent = notReported;
+                document.getElementById('cZeroCount').textContent = cZero;
+                document.getElementById('mZeroCount').textContent = mZero;
+            } else {
+                document.getElementById('file3Stats').style.display = 'none';
+            }
             
-            renderChart(allResults);
+            renderChart(allResults, hasFile3);
             renderTable(allResults);
         }
         
-        function renderChart(results) {
+        function findFile3Match(name1, name2) {
+            const keys = Object.keys(file3Results);
+            const searchName = (name1 || name2 || '').replace(/\s+/g, '').toLowerCase();
+            
+            for (const key of keys) {
+                const keyClean = key.replace(/\s+/g, '').toLowerCase();
+                if (keyClean === searchName || keyClean.includes(searchName) || searchName.includes(keyClean)) {
+                    if (searchName.length >= 4 || keyClean.length >= 4) {
+                        return file3Results[key];
+                    }
+                }
+            }
+            return null;
+        }
+        
+        function renderChart(results, hasFile3) {
             const regionStats = {};
             
             for (const item of results) {
                 if (!regionStats[item.region]) {
-                    regionStats[item.region] = { leveled: 0, notLeveled: 0, unmatched: 0 };
+                    regionStats[item.region] = { leveled: 0, notLeveled: 0, unmatched: 0, notReported: 0 };
                 }
                 if (!item.isMatched) {
                     regionStats[item.region].unmatched++;
@@ -640,15 +791,64 @@
                 } else {
                     regionStats[item.region].notLeveled++;
                 }
+                
+                // 未填报统计（C列和M列均为0）
+                if (hasFile3 && item.file3Data) {
+                    const cIsZero = item.file3Data.cValue === 0 || item.file3Data.cValue === null;
+                    const mIsZero = item.file3Data.mValue === 0 || item.file3Data.mValue === null;
+                    if (cIsZero && mIsZero) {
+                        regionStats[item.region].notReported++;
+                    }
+                }
             }
             
             const labels = Object.keys(regionStats);
             const leveledData = labels.map(region => regionStats[region].leveled);
             const notLeveledData = labels.map(region => regionStats[region].notLeveled);
             const unmatchedData = labels.map(region => regionStats[region].unmatched);
+            const notReportedData = labels.map(region => regionStats[region].notReported);
             
             if (chartInstance) {
                 chartInstance.destroy();
+            }
+            
+            const datasets = [
+                {
+                    label: '已调平',
+                    data: leveledData,
+                    backgroundColor: '#0dcaf0',
+                    borderColor: '#0dcaf0',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: '未调平',
+                    data: notLeveledData,
+                    backgroundColor: '#ffc107',
+                    borderColor: '#ffc107',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: '未匹配',
+                    data: unmatchedData,
+                    backgroundColor: '#adb5bd',
+                    borderColor: '#adb5bd',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }
+            ];
+            
+            // 如果有文件3，增加未填报（红色）柱子
+            if (hasFile3) {
+                datasets.push({
+                    label: '未填报',
+                    data: notReportedData,
+                    backgroundColor: '#dc3545',
+                    borderColor: '#dc3545',
+                    borderWidth: 1,
+                    borderRadius: 4
+                });
             }
             
             const ctx = document.getElementById('levelChart').getContext('2d');
@@ -656,32 +856,7 @@
                 type: 'bar',
                 data: {
                     labels: labels,
-                    datasets: [
-                        {
-                            label: '已调平',
-                            data: leveledData,
-                            backgroundColor: '#0dcaf0',
-                            borderColor: '#0dcaf0',
-                            borderWidth: 1,
-                            borderRadius: 4
-                        },
-                        {
-                            label: '未调平',
-                            data: notLeveledData,
-                            backgroundColor: '#ffc107',
-                            borderColor: '#ffc107',
-                            borderWidth: 1,
-                            borderRadius: 4
-                        },
-                        {
-                            label: '未匹配',
-                            data: unmatchedData,
-                            backgroundColor: '#adb5bd',
-                            borderColor: '#adb5bd',
-                            borderWidth: 1,
-                            borderRadius: 4
-                        }
-                    ]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
@@ -704,8 +879,7 @@
                                     return `${context.dataset.label}: ${context.raw} 个项目`;
                                 }
                             }
-                        },
-                        datalabels: undefined
+                        }
                     }
                 },
                 plugins: [{
@@ -739,6 +913,7 @@
                     tr.className = 'table-secondary';
                 }
                 
+                // 经营分析调平状态
                 let leveledBadge = '';
                 if (!item.isMatched) {
                     leveledBadge = '<span class="badge bg-secondary">未匹配</span>';
@@ -748,12 +923,26 @@
                     leveledBadge = '<span class="badge bg-warning">否</span>';
                 }
                 
+                // 手工校验状态
+                let checkStatus = '<span class="badge bg-light text-muted">-</span>';
+                if (item.file3Data) {
+                    const cIsZero = item.file3Data.cValue === 0 || item.file3Data.cValue === null;
+                    const mIsZero = item.file3Data.mValue === 0 || item.file3Data.mValue === null;
+                    
+                    if (cIsZero && mIsZero) {
+                        checkStatus = '<span class="badge bg-danger">未填报</span>';
+                    } else {
+                        checkStatus = '<span class="badge bg-success">已填报</span>';
+                    }
+                }
+                
                 tr.innerHTML = `
                     <td>${item.region}</td>
                     <td>${item.provideName || '-'}</td>
                     <td>${item.systemName || '-'}</td>
                     <td>${item.projectName2 || '-'}</td>
                     <td>${leveledBadge}</td>
+                    <td>${checkStatus}</td>
                 `;
                 tbody.appendChild(tr);
             }
@@ -819,6 +1008,7 @@
             }
         }
         
+        // 拖拽事件
         document.getElementById('uploadArea1').addEventListener('dragover', function(e) {
             e.preventDefault();
             this.classList.add('dragover');
@@ -852,6 +1042,24 @@
             if (e.dataTransfer.files.length > 0) {
                 document.getElementById('fileInput2').files = e.dataTransfer.files;
                 handleFileUpload(2);
+            }
+        });
+        
+        document.getElementById('uploadArea3').addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+        
+        document.getElementById('uploadArea3').addEventListener('dragleave', function() {
+            this.classList.remove('dragover');
+        });
+        
+        document.getElementById('uploadArea3').addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                document.getElementById('fileInput3').files = e.dataTransfer.files;
+                handleFileUpload(3);
             }
         });
     </script>
