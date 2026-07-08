@@ -233,6 +233,7 @@
                         <table class="table table-striped table-hover">
                             <thead>
                                 <tr>
+                                    <th style="width: 60px;">序号</th>
                                     <th>所属地区公司/子公司</th>
                                     <th>提供项目名称</th>
                                     <th>系统项目名字</th>
@@ -907,7 +908,8 @@
             const tbody = document.getElementById('resultsTableBody');
             tbody.innerHTML = '';
             
-            for (const item of results) {
+            for (let i = 0; i < results.length; i++) {
+                const item = results[i];
                 const tr = document.createElement('tr');
                 if (!item.isMatched) {
                     tr.className = 'table-secondary';
@@ -937,6 +939,7 @@
                 }
                 
                 tr.innerHTML = `
+                    <td class="text-center fw-bold">${i + 1}</td>
                     <td>${item.region}</td>
                     <td>${item.provideName || '-'}</td>
                     <td>${item.systemName || '-'}</td>
