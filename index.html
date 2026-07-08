@@ -136,9 +136,13 @@
             
             <div class="row mb-4">
                 <div class="col-md-12 text-end">
-                    <button id="exportPdfBtn" class="btn btn-primary" onclick="exportToPDF()">
+                    <button id="exportPdfBtn" class="btn btn-primary me-2" onclick="exportToPDF()">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
                         导出PDF报告
+                    </button>
+                    <button id="exportExcelBtn" class="btn btn-success" onclick="exportToExcel()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        导出Excel报告
                     </button>
                 </div>
             </div>
@@ -1010,7 +1014,120 @@
                 btn.innerHTML = originalText;
             }
         }
-        
+
+        function exportToExcel() {
+            const btn = document.getElementById('exportExcelBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '正在生成Excel...';
+
+            try {
+                const wb = XLSX.utils.book_new();
+
+                // 1. 统计概览 sheet
+                const summaryData = [];
+                summaryData.push(['项目匹配统计报告']);
+                summaryData.push(['生成时间', new Date().toLocaleString('zh-CN')]);
+                summaryData.push([]);
+                summaryData.push(['一、文件1总项目数', document.getElementById('totalMatched').textContent]);
+                summaryData.push(['匹配成功项目数', document.getElementById('matchedCount').textContent]);
+                summaryData.push(['经营分析已调平', document.getElementById('leveledCount').textContent]);
+                summaryData.push(['经营分析未调平', document.getElementById('notLeveledCount').textContent]);
+                summaryData.push([]);
+
+                const file3Stats = document.getElementById('file3Stats');
+                if (file3Stats && file3Stats.style.display !== 'none') {
+                    summaryData.push(['二、手工校验表统计']);
+                    summaryData.push(['校验表匹配项目数', document.getElementById('file3MatchedCount').textContent]);
+                    summaryData.push(['未填报（C和M均为0）', document.getElementById('notReportedCount').textContent]);
+                    summaryData.push(['C列为0', document.getElementById('cZeroCount').textContent]);
+                    summaryData.push(['M列为0', document.getElementById('mZeroCount').textContent]);
+                    summaryData.push([]);
+                }
+
+                summaryData.push(['三、按地区公司统计']);
+                const regionLabels = [];
+                const regionData = [];
+                if (chartInstance) {
+                    const labels = chartInstance.data.labels;
+                    const datasets = chartInstance.data.datasets;
+                    summaryData.push(['地区公司'].concat(datasets.map(d => d.label)));
+                    for (let i = 0; i < labels.length; i++) {
+                        const row = [labels[i]];
+                        for (const ds of datasets) {
+                            row.push(ds.data[i]);
+                        }
+                        summaryData.push(row);
+                    }
+                }
+
+                const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+                wsSummary['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+                XLSX.utils.book_append_sheet(wb, wsSummary, '统计概览');
+
+                // 2. 匹配明细 sheet
+                const detailData = [];
+                const headers = ['序号', '所属地区公司/子公司', '提供项目名称', '系统项目名字', '匹配项目名称', '经营分析是否调平', '手工校验状态'];
+                detailData.push(headers);
+
+                for (let i = 0; i < allResults.length; i++) {
+                    const item = allResults[i];
+                    let leveledText = '';
+                    if (!item.isMatched) {
+                        leveledText = '未匹配';
+                    } else if (item.leveled === '是') {
+                        leveledText = '是';
+                    } else {
+                        leveledText = '否';
+                    }
+
+                    let checkText = '-';
+                    if (item.file3Data) {
+                        const cIsZero = item.file3Data.cValue === 0 || item.file3Data.cValue === null;
+                        const mIsZero = item.file3Data.mValue === 0 || item.file3Data.mValue === null;
+                        if (cIsZero && mIsZero) {
+                            checkText = '未填报';
+                        } else {
+                            checkText = '已填报';
+                        }
+                    }
+
+                    detailData.push([
+                        i + 1,
+                        item.region,
+                        item.provideName || '-',
+                        item.systemName || '-',
+                        item.projectName2 || '-',
+                        leveledText,
+                        checkText
+                    ]);
+                }
+
+                const wsDetail = XLSX.utils.aoa_to_sheet(detailData);
+                wsDetail['!cols'] = [
+                    { wch: 6 },
+                    { wch: 20 },
+                    { wch: 25 },
+                    { wch: 25 },
+                    { wch: 25 },
+                    { wch: 15 },
+                    { wch: 12 }
+                ];
+                XLSX.utils.book_append_sheet(wb, wsDetail, '匹配明细');
+
+                const now = new Date();
+                const fileName = `项目匹配统计报告_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+
+            } catch (error) {
+                console.error('Excel导出错误:', error);
+                alert('Excel导出失败：' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
         // 拖拽事件
         document.getElementById('uploadArea1').addEventListener('dragover', function(e) {
             e.preventDefault();
