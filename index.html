@@ -707,7 +707,7 @@
                 }
                 
                 if (!matched) {
-                    // 未匹配文件2，但仍检查文件3
+                    // 须补录项目文件2，但仍检查文件3
                     if (hasFile3) {
                         file3Match = findFile3Match(item1.projectName, null);
                     }
@@ -835,7 +835,7 @@
                     borderRadius: 4
                 },
                 {
-                    label: '未匹配',
+                    label: '须补录项目',
                     data: unmatchedData,
                     backgroundColor: '#adb5bd',
                     borderColor: '#adb5bd',
@@ -922,7 +922,7 @@
                 // 经营分析调平状态
                 let leveledBadge = '';
                 if (!item.isMatched) {
-                    leveledBadge = '<span class="badge bg-secondary">未匹配</span>';
+                    leveledBadge = '<span class="badge bg-secondary">须补录项目</span>';
                 } else if (item.leveled === '是') {
                     leveledBadge = '<span class="badge bg-info">是</span>';
                 } else {
@@ -1074,7 +1074,7 @@
                     const item = allResults[i];
                     let leveledText = '';
                     if (!item.isMatched) {
-                        leveledText = '未匹配';
+                        leveledText = '须补录项目';
                     } else if (item.leveled === '是') {
                         leveledText = '是';
                     } else {
