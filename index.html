@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel项目匹配统计系统</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+        .upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #0d6efd;
+            background-color: #f0f4ff;
+        }
+        .upload-area.has-file {
+            border-color: #198754;
+            background-color: #f0fff4;
+        }
+        .upload-area.has-error {
+            border-color: #dc3545;
+            background-color: #fff5f5;
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+        .result-card {
+            transition: transform 0.2s ease;
+        }
+        .result-card:hover {
+            transform: translateY(-2px);
+        }
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            margin-left: 0.5rem;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Excel项目匹配统计系统</h1>
+        
+        <div class="alert alert-info" role="alert">
+            <strong>使用说明：</strong>支持上传 .xlsx、.xls、.csv 格式文件。如果xlsx文件上传失败，请尝试将文件另存为CSV格式后再上传。
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5>第一步：上传UAT测试项目表</h5>
+                        <small>文件格式：代建项目经营分析系统UAT测试项目和人员收集表</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="upload-area" id="uploadArea1" onclick="document.getElementById('fileInput1').click()">
+                            <input type="file" id="fileInput1" accept=".xlsx,.xls,.csv" class="d-none" onchange="handleFileUpload(1)">
+                            <div class="mb-2">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-muted"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            </div>
+                            <p class="text-muted" id="uploadText1">点击或拖拽上传文件</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5>第二步：上传月度版数据表</h5>
+                        <small>文件格式：2026年06月月度版</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="upload-area" id="uploadArea2" onclick="document.getElementById('fileInput2').click()">
+                            <input type="file" id="fileInput2" accept=".xlsx,.xls,.csv" class="d-none" onchange="handleFileUpload(2)">
+                            <div class="mb-2">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-muted"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            </div>
+                            <p class="text-muted" id="uploadText2">点击或拖拽上传文件</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <button id="matchBtn" class="btn btn-success btn-lg w-100" disabled onclick="startMatching()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+                    开始匹配统计
+                </button>
+            </div>
+            <div class="col-md-4">
+                <button id="testBtn" class="btn btn-info btn-lg w-100" onclick="useTestData()">
+                    使用测试数据
+                </button>
+            </div>
+        </div>
+        
+        <div id="debugArea" class="d-none">
+            <!-- 调试区域已隐藏 -->
+        </div>
+        
+        <div id="resultsArea" class="d-none">
+            <h2 class="text-center mb-4">统计结果</h2>
+            
+            <div class="row mb-4">
+                <div class="col-md-12 text-end">
+                    <button id="exportPdfBtn" class="btn btn-primary" onclick="exportToPDF()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                        导出PDF报告
+                    </button>
+                </div>
+            </div>
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card result-card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h3 class="card-title" id="totalMatched">-</h3>
+                            <p class="card-text">文件1总项目数</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card result-card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h3 class="card-title" id="matchedCount">-</h3>
+                            <p class="card-text">匹配成功项目数</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card result-card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h3 class="card-title" id="leveledCount">-</h3>
+                            <p class="card-text">经营分析已调平</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card result-card bg-warning text-white">
+                        <div class="card-body text-center">
+                            <h3 class="card-title" id="notLeveledCount">-</h3>
+                            <p class="card-text">经营分析未调平</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">按地区公司统计柱状图</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="levelChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">匹配结果明细表</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>所属地区公司/子公司</th>
+                                    <th>提供项目名称</th>
+                                    <th>系统项目名字</th>
+                                    <th>匹配项目名称</th>
+                                    <th>经营分析是否调平</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    
+    <script>
+        let file1Data = null;
+        let file2Data = null;
+        let chartInstance = null;
+        let allResults = [];
+        
+        function useTestData() {
+            file1Data = [
+                ['系统项目名字', '所属地区公司/子公司', '负责人'],
+                ['项目A-测试版', '北京分公司', '张三'],
+                ['项目B-开发版', '上海分公司', '李四'],
+                ['项目C-生产版', '北京分公司', '王五'],
+                ['项目D-测试版', '广州分公司', '赵六']
+            ];
+            
+            file2Data = [
+                ['项目名称', '经营分析是否调平', '月度数据'],
+                ['项目A', '是', 100],
+                ['项目B', '否', 200],
+                ['项目C', '是', 150],
+                ['项目E', '否', 300]
+            ];
+            
+            document.getElementById('uploadArea1').classList.add('has-file');
+            document.getElementById('uploadArea1').classList.remove('has-error');
+            document.getElementById('uploadText1').textContent = '✓ 测试数据文件1 (5行)';
+            document.getElementById('uploadArea2').classList.add('has-file');
+            document.getElementById('uploadArea2').classList.remove('has-error');
+            document.getElementById('uploadText2').textContent = '✓ 测试数据文件2 (5行)';
+            
+            checkReady();
+            startMatching();
+        }
+        
+        function handleFileUpload(fileNumber) {
+            const input = document.getElementById(`fileInput${fileNumber}`);
+            const uploadArea = document.getElementById(`uploadArea${fileNumber}`);
+            const uploadText = document.getElementById(`uploadText${fileNumber}`);
+            
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const fileName = file.name;
+                const fileExt = fileName.split('.').pop().toLowerCase();
+                
+                uploadText.textContent = `正在读取 ${fileName}...`;
+                uploadArea.classList.remove('has-file', 'has-error');
+                
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    try {
+                        let arrayData = null;
+                        
+                        if (fileExt === 'csv') {
+                            const text = e.target.result;
+                            arrayData = parseCSV(text);
+                        } else {
+                            const data = new Uint8Array(e.target.result);
+                            
+                            if (data.length < 4) {
+                                throw new Error('文件太小，可能已损坏');
+                            }
+                            
+                            const header = Array.from(data.slice(0, 4));
+                            const headerHex = header.map(b => b.toString(16).padStart(2, '0')).join(' ');
+                            
+                            if (header[0] === 0x50 && header[1] === 0x4b) {
+                                const workbook = XLSX.read(data, { type: 'array' });
+                                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                                arrayData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+                            } else if (header[0] === 0xd0 && header[1] === 0xcf) {
+                                const workbook = XLSX.read(data, { type: 'array' });
+                                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                                arrayData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+                            } else {
+                                throw new Error(`不支持的文件格式（文件头: ${headerHex}）。请将文件另存为CSV格式后重试`);
+                            }
+                        }
+                        
+                        if (!arrayData || arrayData.length === 0) {
+                            throw new Error('文件内容为空');
+                        }
+                        
+                        if (fileNumber === 1) {
+                            file1Data = arrayData;
+                        } else {
+                            file2Data = arrayData;
+                        }
+                        
+                        uploadArea.classList.add('has-file');
+                        uploadArea.classList.remove('has-error');
+                        uploadText.textContent = `✓ ${file.name} (${arrayData.length}行)`;
+                        
+                        checkReady();
+                        
+                    } catch (error) {
+                        console.error('文件读取错误:', error);
+                        uploadArea.classList.add('has-error');
+                        uploadArea.classList.remove('has-file');
+                        uploadText.textContent = `✗ 读取失败：${error.message}`;
+                        
+                        alert(`文件 "${file.name}" 读取失败：\n\n${error.message}\n\n建议：\n1. 用Excel打开文件\n2. 选择"另存为"\n3. 保存为CSV格式\n4. 重新上传CSV文件`);
+                    }
+                };
+                
+                reader.onerror = function() {
+                    uploadArea.classList.add('has-error');
+                    uploadText.textContent = '✗ 文件读取错误';
+                    alert('文件读取时发生错误，请重试');
+                };
+                
+                if (fileExt === 'csv') {
+                    reader.readAsText(file, 'UTF-8');
+                } else {
+                    reader.readAsArrayBuffer(file);
+                }
+            }
+        }
+        
+        function parseCSV(text) {
+            const lines = text.split(/\r\n|\r|\n/);
+            const result = [];
+            
+            for (const line of lines) {
+                if (line.trim() === '') continue;
+                
+                const row = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    
+                    if (char === '"') {
+                        if (inQuotes && line[i + 1] === '"') {
+                            current += '"';
+                            i++;
+                        } else {
+                            inQuotes = !inQuotes;
+                        }
+                    } else if (char === ',' && !inQuotes) {
+                        row.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                
+                row.push(current.trim());
+                result.push(row);
+            }
+            
+            return result;
+        }
+        
+        function checkReady() {
+            const btn = document.getElementById('matchBtn');
+            if (file1Data && file2Data && file1Data.length > 0 && file2Data.length > 0) {
+                btn.disabled = false;
+            } else {
+                btn.disabled = true;
+            }
+        }
+        
+        function findColByKeyword(data, maxRows, keyword) {
+            for (let i = 0; i < Math.min(data.length, maxRows); i++) {
+                const row = data[i];
+                if (!row) continue;
+                for (let j = 0; j < row.length; j++) {
+                    const cell = String(row[j]).trim();
+                    if (cell.includes(keyword)) {
+                        return { row: i, col: j };
+                    }
+                }
+            }
+            return null;
+        }
+        
+        function findHeaderRowAndCols(data, keywords) {
+            for (let i = 0; i < Math.min(data.length, 20); i++) {
+                const row = data[i];
+                if (!row) continue;
+                const result = { headerRow: i, cols: {} };
+                let foundAny = false;
+                for (const [key, kw] of Object.entries(keywords)) {
+                    for (let j = 0; j < row.length; j++) {
+                        const cell = String(row[j]).trim();
+                        if (cell.includes(kw)) {
+                            result.cols[key] = j;
+                            foundAny = true;
+                            break;
+                        }
+                    }
+                }
+                if (foundAny) return result;
+            }
+            return null;
+        }
+        
+        function startMatching() {
+            if (!file1Data || !file2Data) {
+                alert('请先上传两个文件');
+                return;
+            }
+            
+            document.getElementById('resultsArea').classList.remove('d-none');
+            
+            // === 解析文件1：找"系统项目名字"（用于匹配）、"提供项目名称"（展示用）、"所属地区公司/子公司"列 ===
+            const file1Header = findHeaderRowAndCols(file1Data, {
+                systemName: '系统项目名字',
+                provideName: '提供项目名称',
+                region: '所属地区公司'
+            });
+            
+            let projectNames1 = [];
+            let lastRegion = '未知';
+            
+            if (file1Header) {
+                const hRow = file1Header.headerRow;
+                const sysNameCol = file1Header.cols.systemName !== undefined ? file1Header.cols.systemName : -1;
+                const provNameCol = file1Header.cols.provideName !== undefined ? file1Header.cols.provideName : -1;
+                const rCol = file1Header.cols.region !== undefined ? file1Header.cols.region : -1;
+                
+                console.log(`表头行=${hRow}, 系统项目名字列=${sysNameCol}, 提供项目名称列=${provNameCol}, 所属地区公司列=${rCol}, 文件总行数=${file1Data.length}`);
+                
+                for (let i = hRow + 1; i < file1Data.length; i++) {
+                    const row = file1Data[i];
+                    if (!row) continue;
+                    
+                    // "系统项目名字"用于匹配
+                    let systemName = '';
+                    if (sysNameCol >= 0 && row.length > sysNameCol) {
+                        systemName = String(row[sysNameCol]).trim();
+                    }
+                    
+                    // "提供项目名称"用于显示
+                    let provideName = systemName;
+                    if (provNameCol >= 0 && row.length > provNameCol) {
+                        const p = String(row[provNameCol]).trim();
+                        if (p && p !== 'nan' && p !== 'undefined') {
+                            provideName = p;
+                        }
+                    }
+                    
+                    let region = lastRegion;
+                    if (rCol >= 0 && row.length > rCol) {
+                        const r = String(row[rCol]).trim();
+                        if (r && r !== 'nan' && r !== 'undefined') {
+                            region = r;
+                            lastRegion = r;
+                        }
+                    }
+                    
+                    // 如果"系统项目名字"为空，尝试用"提供项目名称"
+                    let matchName = systemName;
+                    if (!matchName || matchName === 'nan' || matchName === 'undefined') {
+                        matchName = provideName;
+                    }
+                    
+                    if (matchName && matchName !== 'nan' && matchName !== 'undefined') {
+                        if (matchName.includes('系统项目名字') || matchName.includes('EAS')) continue;
+                        if (matchName.length < 2) continue;
+                        projectNames1.push({ 
+                            systemName: systemName || matchName,
+                            provideName: provideName,
+                            region: region || '未知',
+                            projectName: matchName  // 用于匹配的项目名
+                        });
+                    }
+                }
+            } else {
+                // 如果找不到"系统项目名字"，尝试C列（索引2）
+                console.log(`未找到"系统项目名字"表头，尝试使用C列(索引2)，文件总行数=${file1Data.length}`);
+                
+                for (let i = 1; i < file1Data.length; i++) {
+                    const row = file1Data[i];
+                    if (!row) continue;
+                    
+                    let name = '';
+                    if (row.length > 2) {
+                        name = String(row[2]).trim();
+                    }
+                    
+                    let region = lastRegion;
+                    if (row.length > 1) {
+                        const r = String(row[1]).trim();
+                        if (r && r !== 'nan' && r !== 'undefined') {
+                            region = r;
+                            lastRegion = r;
+                        }
+                    }
+                    
+                    if (name && name !== 'nan' && name !== 'undefined') {
+                        projectNames1.push({ projectName: name, region: region || '未知' });
+                    }
+                }
+            }
+            
+            // === 解析文件2：找"项目名称"和"经营分析是否调平"列 ===
+            const file2Header = findHeaderRowAndCols(file2Data, {
+                projectName: '项目名称',
+                leveled: '经营分析是否调平'
+            });
+            
+            let projectNames2 = [];
+            
+            if (file2Header && file2Header.cols.projectName !== undefined) {
+                const hRow = file2Header.headerRow;
+                const pCol = file2Header.cols.projectName;
+                const lCol = file2Header.cols.leveled !== undefined ? file2Header.cols.leveled : -1;
+                
+                console.log(`文件2表头行=${hRow}, 项目名称列=${pCol}, 调平列=${lCol}`);
+                
+                for (let i = hRow + 1; i < file2Data.length; i++) {
+                    const row = file2Data[i];
+                    if (!row || row.length <= pCol) continue;
+                    const name = String(row[pCol]).trim();
+                    if (!name || name === 'nan' || name === 'undefined' || name === '') continue;
+                    const leveled = lCol >= 0 && row.length > lCol ? String(row[lCol]).trim() : '';
+                    projectNames2.push({ projectName: name, leveled: leveled });
+                }
+            } else {
+                console.log('未找到"项目名称"表头，请检查文件2格式');
+            }
+            
+            console.log('文件1项目数:', projectNames1.length);
+            console.log('文件2项目数:', projectNames2.length);
+            console.log('文件1项目名列表:', projectNames1.map(p => p.projectName));
+            console.log('文件2项目名列表:', projectNames2.map(p => p.projectName));
+            
+            if (projectNames1.length === 0) {
+                alert('文件1未识别到任何项目，请检查文件格式');
+                return;
+            }
+            if (projectNames2.length === 0) {
+                alert('文件2未识别到任何项目，请检查文件格式');
+                return;
+            }
+            
+            // 匹配逻辑：以文件1所有项目为基础，逐个匹配文件2
+            allResults = [];
+            const usedProject2 = new Set();
+            
+            // 用Set去重文件名1
+            const seen = new Set();
+            const uniqueProjectNames1 = [];
+            for (const item of projectNames1) {
+                const key = item.projectName + '|' + item.region;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    uniqueProjectNames1.push(item);
+                }
+            }
+            
+            for (const item1 of uniqueProjectNames1) {
+                let matched = false;
+                for (let idx2 = 0; idx2 < projectNames2.length; idx2++) {
+                    const item2 = projectNames2[idx2];
+                    if (usedProject2.has(idx2)) continue;
+                    
+                    const name1 = item1.projectName.replace(/\s+/g, '').toLowerCase();
+                    const name2 = item2.projectName.replace(/\s+/g, '').toLowerCase();
+                    
+                    let isMatch = false;
+                    
+                    if (name1 === name2) {
+                        isMatch = true;
+                    } else if (name1.includes(name2) || name2.includes(name1)) {
+                        const shorter = name1.length < name2.length ? name1 : name2;
+                        if (shorter.length >= 4) {
+                            isMatch = true;
+                        }
+                    }
+                    
+                    if (isMatch) {
+                        allResults.push({
+                            systemName: item1.systemName,
+                            provideName: item1.provideName,
+                            region: item1.region,
+                            projectName2: item2.projectName,
+                            leveled: item2.leveled,
+                            isMatched: true
+                        });
+                        usedProject2.add(idx2);
+                        matched = true;
+                        break;
+                    }
+                }
+                
+                if (!matched) {
+                    allResults.push({
+                        systemName: item1.systemName,
+                        provideName: item1.provideName,
+                        region: item1.region,
+                        projectName2: '-',
+                        leveled: '',
+                        isMatched: false
+                    });
+                }
+            }
+            
+            const matchedItems = allResults.filter(item => item.isMatched);
+            const unmatchedItems = allResults.filter(item => !item.isMatched);
+            const leveledCount = matchedItems.filter(item => item.leveled === '是').length;
+            const notLeveledCount = matchedItems.filter(item => item.leveled !== '是').length;
+            
+            document.getElementById('totalMatched').textContent = allResults.length;
+            document.getElementById('matchedCount').textContent = matchedItems.length;
+            document.getElementById('leveledCount').textContent = leveledCount;
+            document.getElementById('notLeveledCount').textContent = notLeveledCount;
+            
+            console.log('文件1总项目数:', allResults.length);
+            console.log('匹配成功:', matchedItems.length, '未匹配:', unmatchedItems.length);
+            console.log('匹配结果:', allResults);
+            
+            renderChart(allResults);
+            renderTable(allResults);
+        }
+        
+        function renderChart(results) {
+            const regionStats = {};
+            
+            for (const item of results) {
+                if (!regionStats[item.region]) {
+                    regionStats[item.region] = { leveled: 0, notLeveled: 0, unmatched: 0 };
+                }
+                if (!item.isMatched) {
+                    regionStats[item.region].unmatched++;
+                } else if (item.leveled === '是') {
+                    regionStats[item.region].leveled++;
+                } else {
+                    regionStats[item.region].notLeveled++;
+                }
+            }
+            
+            const labels = Object.keys(regionStats);
+            const leveledData = labels.map(region => regionStats[region].leveled);
+            const notLeveledData = labels.map(region => regionStats[region].notLeveled);
+            const unmatchedData = labels.map(region => regionStats[region].unmatched);
+            
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+            
+            const ctx = document.getElementById('levelChart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '已调平',
+                            data: leveledData,
+                            backgroundColor: '#0dcaf0',
+                            borderColor: '#0dcaf0',
+                            borderWidth: 1,
+                            borderRadius: 4
+                        },
+                        {
+                            label: '未调平',
+                            data: notLeveledData,
+                            backgroundColor: '#ffc107',
+                            borderColor: '#ffc107',
+                            borderWidth: 1,
+                            borderRadius: 4
+                        },
+                        {
+                            label: '未匹配',
+                            data: unmatchedData,
+                            backgroundColor: '#adb5bd',
+                            borderColor: '#adb5bd',
+                            borderWidth: 1,
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.raw} 个项目`;
+                                }
+                            }
+                        },
+                        datalabels: undefined
+                    }
+                },
+                plugins: [{
+                    afterDatasetsDraw: function(chart) {
+                        const ctx = chart.ctx;
+                        chart.data.datasets.forEach(function(dataset, i) {
+                            const meta = chart.getDatasetMeta(i);
+                            meta.data.forEach(function(bar, index) {
+                                const value = dataset.data[index];
+                                if (value > 0) {
+                                    ctx.fillStyle = '#333';
+                                    ctx.font = 'bold 12px sans-serif';
+                                    ctx.textAlign = 'center';
+                                    ctx.textBaseline = 'bottom';
+                                    ctx.fillText(value, bar.x, bar.y - 4);
+                                }
+                            });
+                        });
+                    }
+                }]
+            });
+        }
+        
+        function renderTable(results) {
+            const tbody = document.getElementById('resultsTableBody');
+            tbody.innerHTML = '';
+            
+            for (const item of results) {
+                const tr = document.createElement('tr');
+                if (!item.isMatched) {
+                    tr.className = 'table-secondary';
+                }
+                
+                let leveledBadge = '';
+                if (!item.isMatched) {
+                    leveledBadge = '<span class="badge bg-secondary">未匹配</span>';
+                } else if (item.leveled === '是') {
+                    leveledBadge = '<span class="badge bg-info">是</span>';
+                } else {
+                    leveledBadge = '<span class="badge bg-warning">否</span>';
+                }
+                
+                tr.innerHTML = `
+                    <td>${item.region}</td>
+                    <td>${item.provideName || '-'}</td>
+                    <td>${item.systemName || '-'}</td>
+                    <td>${item.projectName2 || '-'}</td>
+                    <td>${leveledBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+        
+        async function exportToPDF() {
+            const btn = document.getElementById('exportPdfBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '正在生成PDF...';
+            
+            try {
+                const resultsArea = document.getElementById('resultsArea');
+                
+                btn.style.display = 'none';
+                
+                const canvas = await html2canvas(resultsArea, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                });
+                
+                btn.style.display = '';
+                
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const margin = 10;
+                
+                const imgWidth = pageWidth - 2 * margin;
+                const imgHeight = (canvas.height / canvas.width) * imgWidth;
+                
+                if (imgHeight <= pageHeight - 2 * margin) {
+                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, imgWidth, imgHeight);
+                } else {
+                    let heightLeft = imgHeight;
+                    let position = margin;
+                    const imgData = canvas.toDataURL('image/png');
+                    
+                    pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+                    heightLeft -= (pageHeight - 2 * margin);
+                    
+                    while (heightLeft > 0) {
+                        position = margin - (imgHeight - heightLeft);
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+                        heightLeft -= (pageHeight - 2 * margin);
+                    }
+                }
+                
+                const now = new Date();
+                const fileName = `项目匹配统计报告_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.pdf`;
+                pdf.save(fileName);
+                
+            } catch (error) {
+                console.error('PDF导出错误:', error);
+                alert('PDF导出失败：' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+        
+        document.getElementById('uploadArea1').addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+        
+        document.getElementById('uploadArea1').addEventListener('dragleave', function() {
+            this.classList.remove('dragover');
+        });
+        
+        document.getElementById('uploadArea1').addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                document.getElementById('fileInput1').files = e.dataTransfer.files;
+                handleFileUpload(1);
+            }
+        });
+        
+        document.getElementById('uploadArea2').addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+        
+        document.getElementById('uploadArea2').addEventListener('dragleave', function() {
+            this.classList.remove('dragover');
+        });
+        
+        document.getElementById('uploadArea2').addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                document.getElementById('fileInput2').files = e.dataTransfer.files;
+                handleFileUpload(2);
+            }
+        });
+    </script>
+</body>
+</html>
