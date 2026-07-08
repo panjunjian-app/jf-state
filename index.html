@@ -183,35 +183,11 @@
             </div>
             
             <div class="row mb-4" id="file3Stats" style="display: none;">
-                <div class="col-md-3">
-                    <div class="card result-card bg-secondary text-white">
-                        <div class="card-body text-center">
-                            <h3 class="card-title" id="file3MatchedCount">-</h3>
-                            <p class="card-text">校验表匹配项目数</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
+                <div class="col-md-6">
                     <div class="card result-card bg-danger text-white">
                         <div class="card-body text-center">
                             <h3 class="card-title" id="notReportedCount">-</h3>
                             <p class="card-text">未填报（C和M均为0）</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card result-card bg-light border">
-                        <div class="card-body text-center">
-                            <h3 class="card-title text-dark" id="cZeroCount">-</h3>
-                            <p class="card-text text-dark">C列为0</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card result-card bg-light border">
-                        <div class="card-body text-center">
-                            <h3 class="card-title text-dark" id="mZeroCount">-</h3>
-                            <p class="card-text text-dark">M列为0</p>
                         </div>
                     </div>
                 </div>
@@ -755,10 +731,7 @@
                     }
                 }
                 
-                document.getElementById('file3MatchedCount').textContent = file3Matched;
                 document.getElementById('notReportedCount').textContent = notReported;
-                document.getElementById('cZeroCount').textContent = cZero;
-                document.getElementById('mZeroCount').textContent = mZero;
             } else {
                 document.getElementById('file3Stats').style.display = 'none';
             }
@@ -1029,8 +1002,8 @@
                 summaryData.push(['项目匹配统计报告']);
                 summaryData.push(['生成时间', new Date().toLocaleString('zh-CN')]);
                 summaryData.push([]);
-                summaryData.push(['一、文件1总项目数', document.getElementById('totalMatched').textContent]);
-                summaryData.push(['匹配成功项目数', document.getElementById('matchedCount').textContent]);
+                summaryData.push(['一、报备项目总数', document.getElementById('totalMatched').textContent]);
+                summaryData.push(['系统实际项目数', document.getElementById('matchedCount').textContent]);
                 summaryData.push(['经营分析已调平', document.getElementById('leveledCount').textContent]);
                 summaryData.push(['经营分析未调平', document.getElementById('notLeveledCount').textContent]);
                 summaryData.push([]);
@@ -1038,10 +1011,7 @@
                 const file3Stats = document.getElementById('file3Stats');
                 if (file3Stats && file3Stats.style.display !== 'none') {
                     summaryData.push(['二、手工校验表统计']);
-                    summaryData.push(['校验表匹配项目数', document.getElementById('file3MatchedCount').textContent]);
                     summaryData.push(['未填报（C和M均为0）', document.getElementById('notReportedCount').textContent]);
-                    summaryData.push(['C列为0', document.getElementById('cZeroCount').textContent]);
-                    summaryData.push(['M列为0', document.getElementById('mZeroCount').textContent]);
                     summaryData.push([]);
                 }
 
