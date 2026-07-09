@@ -207,9 +207,9 @@
             <div class="card" id="detailTableCard">
                 <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">匹配结果明细表</h5>
-                    <button id="exportDetailPdfBtn" class="btn btn-light btn-sm" onclick="exportDetailToPDF()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-                        导出明细PDF
+                    <button id="exportDetailExcelBtn" class="btn btn-light btn-sm" onclick="exportDetailToExcel()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        导出明细Excel
                     </button>
                 </div>
                 <div class="card-body">
@@ -1102,67 +1102,135 @@
             }
         }
 
-        async function exportDetailToPDF() {
-            const btn = document.getElementById('exportDetailPdfBtn');
+        function exportDetailToExcel() {
+            const btn = document.getElementById('exportDetailExcelBtn');
             const originalText = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '正在生成明细PDF...';
+            btn.innerHTML = '正在生成明细Excel...';
 
             try {
-                const tableCard = document.getElementById('detailTableCard');
+                const wb = XLSX.utils.book_new();
+                const wsName = '匹配结果明细表';
 
-                btn.style.display = 'none';
-                document.getElementById('exportPdfBtn').style.display = 'none';
-                document.getElementById('exportExcelBtn').style.display = 'none';
+                // 表头
+                const headers = ['序号', '所属地区公司/子公司', '提供项目名称', '系统项目名字', '匹配项目名称', '经营分析是否调平', '手工校验状态'];
+                const data = [headers];
+                const styles = [];
 
-                const canvas = await html2canvas(tableCard, {
-                    scale: 2,
-                    useCORS: true,
-                    backgroundColor: '#ffffff',
-                    logging: false
-                });
-
-                btn.style.display = '';
-                document.getElementById('exportPdfBtn').style.display = '';
-                document.getElementById('exportExcelBtn').style.display = '';
-
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('l', 'mm', 'a4');
-                const pageWidth = pdf.internal.pageSize.getWidth();
-                const pageHeight = pdf.internal.pageSize.getHeight();
-                const margin = 10;
-
-                const imgWidth = pageWidth - 2 * margin;
-                const imgHeight = (canvas.height / canvas.width) * imgWidth;
-
-                if (imgHeight <= pageHeight - 2 * margin) {
-                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, imgWidth, imgHeight);
-                } else {
-                    let heightLeft = imgHeight;
-                    let position = margin;
-                    const imgData = canvas.toDataURL('image/png');
-
-                    pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
-                    heightLeft -= (pageHeight - 2 * margin);
-
-                    while (heightLeft > 0) {
-                        position = margin - (imgHeight - heightLeft);
-                        pdf.addPage();
-                        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
-                        heightLeft -= (pageHeight - 2 * margin);
-                    }
+                // 表头样式（深色背景 + 白色字体）
+                const headerStyle = {
+                    fill: { patternType: 'solid', fgColor: { rgb: '212529' } },
+                    font: { color: { rgb: 'FFFFFF' }, bold: true },
+                    alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
+                };
+                for (let c = 0; c < headers.length; c++) {
+                    styles.push({ r: 0, c: c, style: headerStyle });
                 }
 
+                for (let i = 0; i < allResults.length; i++) {
+                    const item = allResults[i];
+                    const rowIdx = i + 1;
+
+                    let leveledText = '';
+                    let leveledColor = '';
+                    let leveledFontColor = 'FFFFFF';
+                    if (!item.isMatched) {
+                        leveledText = '须补录项目';
+                        leveledColor = '6C757D';
+                    } else if (item.leveled === '是') {
+                        leveledText = '是';
+                        leveledColor = '0DCAF0';
+                    } else {
+                        leveledText = '否';
+                        leveledColor = 'FFC107';
+                        leveledFontColor = '000000';
+                    }
+
+                    let checkText = '-';
+                    let checkColor = '6C757D';
+                    if (item.file3Data) {
+                        const cIsZero = item.file3Data.cValue === 0 || item.file3Data.cValue === null;
+                        const mIsZero = item.file3Data.mValue === 0 || item.file3Data.mValue === null;
+                        if (cIsZero && mIsZero) {
+                            checkText = '未填报';
+                            checkColor = 'DC3545';
+                        } else {
+                            checkText = '已填报';
+                            checkColor = '198754';
+                        }
+                    }
+
+                    data.push([
+                        i + 1,
+                        item.region,
+                        item.provideName || '-',
+                        item.systemName || '-',
+                        item.projectName2 || '-',
+                        leveledText,
+                        checkText
+                    ]);
+
+                    // 斑马纹
+                    const rowBgColor = (i % 2 === 0) ? 'FFFFFF' : 'F8F9FA';
+                    const baseStyle = {
+                        fill: { patternType: 'solid', fgColor: { rgb: rowBgColor } },
+                        alignment: { vertical: 'center' }
+                    };
+
+                    // 序号居中加粗
+                    styles.push({ r: rowIdx, c: 0, style: { ...baseStyle, font: { bold: true }, alignment: { horizontal: 'center', vertical: 'center' } } });
+                    // 普通文字列
+                    for (let c = 1; c <= 4; c++) {
+                        styles.push({ r: rowIdx, c: c, style: baseStyle });
+                    }
+                    // 经营分析状态单元格
+                    styles.push({
+                        r: rowIdx, c: 5,
+                        style: {
+                            fill: { patternType: 'solid', fgColor: { rgb: leveledColor } },
+                            font: { color: { rgb: leveledFontColor }, bold: true },
+                            alignment: { horizontal: 'center', vertical: 'center' }
+                        }
+                    });
+                    // 手工校验状态单元格
+                    styles.push({
+                        r: rowIdx, c: 6,
+                        style: {
+                            fill: { patternType: 'solid', fgColor: { rgb: checkColor } },
+                            font: { color: { rgb: 'FFFFFF' }, bold: true },
+                            alignment: { horizontal: 'center', vertical: 'center' }
+                        }
+                    });
+                }
+
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                ws['!cols'] = [
+                    { wch: 6 },
+                    { wch: 18 },
+                    { wch: 35 },
+                    { wch: 35 },
+                    { wch: 35 },
+                    { wch: 16 },
+                    { wch: 14 }
+                ];
+
+                // 应用样式
+                if (!ws['!cellStyles']) ws['!cellStyles'] = [];
+                for (const s of styles) {
+                    const cellRef = XLSX.utils.encode_cell({ r: s.r, c: s.c });
+                    if (!ws[cellRef]) ws[cellRef] = {};
+                    ws[cellRef].s = s.style;
+                }
+
+                XLSX.utils.book_append_sheet(wb, ws, wsName);
+
                 const now = new Date();
-                const fileName = `项目匹配明细_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.pdf`;
-                pdf.save(fileName);
+                const fileName = `项目匹配明细_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
+                XLSX.writeFile(wb, fileName);
 
             } catch (error) {
-                console.error('明细PDF导出错误:', error);
-                alert('明细PDF导出失败：' + error.message);
-                btn.style.display = '';
-                document.getElementById('exportPdfBtn').style.display = '';
-                document.getElementById('exportExcelBtn').style.display = '';
+                console.error('明细Excel导出错误:', error);
+                alert('明细Excel导出失败：' + error.message);
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
