@@ -937,56 +937,86 @@
             const originalText = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '正在生成PDF...';
-            
+
             try {
                 const resultsArea = document.getElementById('resultsArea');
-                
+                const detailCard = document.getElementById('detailTableCard');
+
                 btn.style.display = 'none';
-                
-                const canvas = await html2canvas(resultsArea, {
+
+                // 1. 先截图统计部分（隐藏明细表）
+                detailCard.style.display = 'none';
+                const statsCanvas = await html2canvas(resultsArea, {
                     scale: 2,
                     useCORS: true,
                     backgroundColor: '#ffffff',
                     logging: false
                 });
-                
-                btn.style.display = '';
-                
+                detailCard.style.display = '';
+
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('p', 'mm', 'a4');
                 const pageWidth = pdf.internal.pageSize.getWidth();
                 const pageHeight = pdf.internal.pageSize.getHeight();
                 const margin = 10;
-                
-                const imgWidth = pageWidth - 2 * margin;
-                const imgHeight = (canvas.height / canvas.width) * imgWidth;
-                
-                if (imgHeight <= pageHeight - 2 * margin) {
-                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, imgWidth, imgHeight);
+
+                const statsImgWidth = pageWidth - 2 * margin;
+                const statsImgHeight = (statsCanvas.height / statsCanvas.width) * statsImgWidth;
+
+                if (statsImgHeight <= pageHeight - 2 * margin) {
+                    pdf.addImage(statsCanvas.toDataURL('image/png'), 'PNG', margin, margin, statsImgWidth, statsImgHeight);
                 } else {
-                    let heightLeft = imgHeight;
+                    let heightLeft = statsImgHeight;
                     let position = margin;
-                    const imgData = canvas.toDataURL('image/png');
-                    
-                    pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+                    const imgData = statsCanvas.toDataURL('image/png');
+
+                    pdf.addImage(imgData, 'PNG', margin, position, statsImgWidth, statsImgHeight);
                     heightLeft -= (pageHeight - 2 * margin);
-                    
+
                     while (heightLeft > 0) {
-                        position = margin - (imgHeight - heightLeft);
+                        position = margin - (statsImgHeight - heightLeft);
                         pdf.addPage();
-                        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+                        pdf.addImage(imgData, 'PNG', margin, position, statsImgWidth, statsImgHeight);
                         heightLeft -= (pageHeight - 2 * margin);
                     }
                 }
-                
+
+                // 2. 再单独截图明细表，放到横向A4一页中
+                const detailCanvas = await html2canvas(detailCard, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                });
+
+                pdf.addPage('l', 'mm', 'a4');
+                const landWidth = pdf.internal.pageSize.getWidth();
+                const landHeight = pdf.internal.pageSize.getHeight();
+                const landMargin = 10;
+
+                const detailImgWidth = landWidth - 2 * landMargin;
+                const detailImgHeight = (detailCanvas.height / detailCanvas.width) * detailImgWidth;
+
+                if (detailImgHeight <= landHeight - 2 * landMargin) {
+                    pdf.addImage(detailCanvas.toDataURL('image/png'), 'PNG', landMargin, landMargin, detailImgWidth, detailImgHeight);
+                } else {
+                    // 如果横向还是放不下，等比缩小到页面高度
+                    const scaleRatio = (landHeight - 2 * landMargin) / detailImgHeight;
+                    const scaledWidth = detailImgWidth * scaleRatio;
+                    const scaledHeight = detailImgHeight * scaleRatio;
+                    const xOffset = landMargin + (detailImgWidth - scaledWidth) / 2;
+                    pdf.addImage(detailCanvas.toDataURL('image/png'), 'PNG', xOffset, landMargin, scaledWidth, scaledHeight);
+                }
+
                 const now = new Date();
                 const fileName = `项目匹配统计报告_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.pdf`;
                 pdf.save(fileName);
-                
+
             } catch (error) {
                 console.error('PDF导出错误:', error);
                 alert('PDF导出失败：' + error.message);
             } finally {
+                btn.style.display = '';
                 btn.disabled = false;
                 btn.innerHTML = originalText;
             }
