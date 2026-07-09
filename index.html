@@ -140,9 +140,13 @@
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
                         导出PDF报告
                     </button>
-                    <button id="exportExcelBtn" class="btn btn-success" onclick="exportToExcel()">
+                    <button id="exportExcelBtn" class="btn btn-success me-2" onclick="exportToExcel()">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                         导出Excel报告
+                    </button>
+                    <button id="exportDetailPdfBtn" class="btn btn-secondary" onclick="exportDetailToPDF()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline><line x1="12" y1="9" x2="12" y2="13"></line><line x1="9" y1="11" x2="15" y2="11"></line></svg>
+                        导出明细PDF
                     </button>
                 </div>
             </div>
@@ -1092,6 +1096,73 @@
             } catch (error) {
                 console.error('Excel导出错误:', error);
                 alert('Excel导出失败：' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        async function exportDetailToPDF() {
+            const btn = document.getElementById('exportDetailPdfBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '正在生成明细PDF...';
+
+            try {
+                const tableCard = document.querySelector('#resultsArea .card:last-child');
+
+                btn.style.display = 'none';
+                document.getElementById('exportPdfBtn').style.display = 'none';
+                document.getElementById('exportExcelBtn').style.display = 'none';
+
+                const canvas = await html2canvas(tableCard, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                });
+
+                btn.style.display = '';
+                document.getElementById('exportPdfBtn').style.display = '';
+                document.getElementById('exportExcelBtn').style.display = '';
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('l', 'mm', 'a4');
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const margin = 10;
+
+                const imgWidth = pageWidth - 2 * margin;
+                const imgHeight = (canvas.height / canvas.width) * imgWidth;
+
+                if (imgHeight <= pageHeight - 2 * margin) {
+                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, imgWidth, imgHeight);
+                } else {
+                    let heightLeft = imgHeight;
+                    let position = margin;
+                    const imgData = canvas.toDataURL('image/png');
+
+                    pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+                    heightLeft -= (pageHeight - 2 * margin);
+
+                    while (heightLeft > 0) {
+                        position = margin - (imgHeight - heightLeft);
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+                        heightLeft -= (pageHeight - 2 * margin);
+                    }
+                }
+
+                const now = new Date();
+                const fileName = `项目匹配明细_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.pdf`;
+                pdf.save(fileName);
+
+            } catch (error) {
+                console.error('明细PDF导出错误:', error);
+                alert('明细PDF导出失败：' + error.message);
+                btn.style.display = '';
+                document.getElementById('exportPdfBtn').style.display = '';
+                document.getElementById('exportExcelBtn').style.display = '';
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
