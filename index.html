@@ -207,10 +207,16 @@
             <div class="card" id="detailTableCard">
                 <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">匹配结果明细表</h5>
-                    <button id="exportDetailExcelBtn" class="btn btn-light btn-sm" onclick="exportDetailToExcel()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                        导出明细Excel
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button id="exportDetailPdfBtn" class="btn btn-light btn-sm" onclick="exportDetailToPDF()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                            导出明细PDF
+                        </button>
+                        <button id="exportDetailExcelBtn" class="btn btn-light btn-sm" onclick="exportDetailToExcel()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            导出明细Excel
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -1261,6 +1267,59 @@
             } catch (error) {
                 console.error('明细Excel导出错误:', error);
                 alert('明细Excel导出失败：' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        async function exportDetailToPDF() {
+            const btn = document.getElementById('exportDetailPdfBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '正在生成明细PDF...';
+
+            try {
+                const detailCard = document.getElementById('detailTableCard');
+
+                btn.style.display = 'none';
+
+                const canvas = await html2canvas(detailCard, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                });
+
+                btn.style.display = '';
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('l', 'mm', 'a4');
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const margin = 10;
+
+                const imgWidth = pageWidth - 2 * margin;
+                const imgHeight = (canvas.height / canvas.width) * imgWidth;
+
+                if (imgHeight <= pageHeight - 2 * margin) {
+                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, imgWidth, imgHeight);
+                } else {
+                    const scaleRatio = (pageHeight - 2 * margin) / imgHeight;
+                    const scaledWidth = imgWidth * scaleRatio;
+                    const scaledHeight = imgHeight * scaleRatio;
+                    const xOffset = margin + (imgWidth - scaledWidth) / 2;
+                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', xOffset, margin, scaledWidth, scaledHeight);
+                }
+
+                const now = new Date();
+                const fileName = `项目匹配明细_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.pdf`;
+                pdf.save(fileName);
+
+            } catch (error) {
+                console.error('明细PDF导出错误:', error);
+                alert('明细PDF导出失败：' + error.message);
+                btn.style.display = '';
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
